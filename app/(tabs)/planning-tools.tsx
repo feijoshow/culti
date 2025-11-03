@@ -1,0 +1,739 @@
+import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
+import React, { useState } from "react";
+import {
+    Alert,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
+} from "react-native";
+import { crops } from "../data/crops";
+
+// Type definitions
+interface CalculatorResults {
+  type: "seed" | "fertilizer" | "irrigation" | "yield";
+  crop: string;
+  fieldSize: number;
+  [key: string]: any;
+}
+
+interface CropYield {
+  tonsPerHa: number;
+}
+
+interface CropGrowth {
+  temperature: string;
+  population: string;
+  yield: string | CropYield;
+  period: string;
+}
+
+interface Crop {
+  name: string;
+  scientificName: string;
+  image: string;
+  description: string;
+  seedsPerKg: number;
+  kgPerHa: number;
+  spacing: {
+    intraRows: string;
+    interRows: string;
+  };
+  sowingDepth: string;
+  germination: {
+    temperature: number;
+    days: number;
+  };
+  growth: CropGrowth;
+  rootDepth: string | number;
+  irrigation: {
+    total: number;
+    firstPart: number;
+    secondPart: number;
+  };
+  nutrients: {
+    n: number;
+    p: number;
+    k: number;
+  };
+  leafAnalysis: {
+    n: number;
+    p: number;
+    k: number;
+  };
+  microDeficiencies: string[];
+  soilPH: string;
+  diseases: string[];
+  pests: string[];
+}
+
+export default function PlanningToolsScreen() {
+  const router = useRouter();
+  const [selectedTool, setSelectedTool] = useState("seed");
+  const [selectedCrop, setSelectedCrop] = useState("");
+  const [fieldSize, setFieldSize] = useState("");
+  const [results, setResults] = useState<CalculatorResults | null>(null);
+
+  const tools = [
+    { id: "seed", name: "Seed Calculator", icon: "leaf" },
+    { id: "fertilizer", name: "Fertilizer Calculator", icon: "flask" },
+    { id: "irrigation", name: "Irrigation Calculator", icon: "water" },
+    { id: "yield", name: "Yield Estimator", icon: "trending-up" },
+  ];
+
+  const calculateSeeds = () => {
+    if (!selectedCrop || !fieldSize) {
+      Alert.alert("Missing Information", "Please select a crop and enter field size.");
+      return;
+    }
+
+    const crop = crops.find((c: Crop) => c.name === selectedCrop);
+    if (!crop) {
+      Alert.alert("Error", "Selected crop not found.");
+      return;
+    }
+
+    const size = parseFloat(fieldSize);
+    if (isNaN(size) || size <= 0) {
+      Alert.alert("Invalid Input", "Please enter a valid field size.");
+      return;
+    }
+
+    const seedsPerKg = crop.seedsPerKg;
+    const kgPerHa = crop.kgPerHa;
+    
+    const totalKgNeeded = (kgPerHa * size) / 10000;
+    const totalSeedsNeeded = totalKgNeeded * seedsPerKg;
+    
+    setResults({
+      type: "seed",
+      crop: crop.name,
+      fieldSize: size,
+      totalKgNeeded: totalKgNeeded.toFixed(2),
+      totalSeedsNeeded: totalSeedsNeeded.toFixed(0),
+      costEstimate: (totalKgNeeded * 50).toFixed(2),
+      seedsPerKg: seedsPerKg.toLocaleString(),
+      kgPerHa: kgPerHa,
+    });
+  };
+
+  const calculateFertilizer = () => {
+    if (!selectedCrop || !fieldSize) {
+      Alert.alert("Missing Information", "Please select a crop and enter field size.");
+      return;
+    }
+
+    const crop = crops.find((c: Crop) => c.name === selectedCrop);
+    if (!crop) {
+      Alert.alert("Error", "Selected crop not found.");
+      return;
+    }
+
+    const size = parseFloat(fieldSize);
+    if (isNaN(size) || size <= 0) {
+      Alert.alert("Invalid Input", "Please enter a valid field size.");
+      return;
+    }
+
+    const n = crop.nutrients.n;
+    const p = crop.nutrients.p;
+    const k = crop.nutrients.k;
+    
+    const nNeeded = (n * size) / 10000;
+    const pNeeded = (p * size) / 10000;
+    const kNeeded = (k * size) / 10000;
+    
+    setResults({
+      type: "fertilizer",
+      crop: crop.name,
+      fieldSize: size,
+      n: nNeeded.toFixed(2),
+      p: pNeeded.toFixed(2),
+      k: kNeeded.toFixed(2),
+      costEstimate: ((nNeeded * 2) + (pNeeded * 3) + (kNeeded * 2)).toFixed(2),
+      nPerHa: n,
+      pPerHa: p,
+      kPerHa: k,
+    });
+  };
+
+  const calculateIrrigation = () => {
+    if (!selectedCrop || !fieldSize) {
+      Alert.alert("Missing Information", "Please select a crop and enter field size.");
+      return;
+    }
+
+    const crop = crops.find((c: Crop) => c.name === selectedCrop);
+    if (!crop) {
+      Alert.alert("Error", "Selected crop not found.");
+      return;
+    }
+
+    const size = parseFloat(fieldSize);
+    if (isNaN(size) || size <= 0) {
+      Alert.alert("Invalid Input", "Please enter a valid field size.");
+      return;
+    }
+
+    const totalWater = crop.irrigation.total;
+    
+    const totalWaterNeeded = (totalWater * size) / 10000;
+    const firstSeasonWeekly = (crop.irrigation.firstPart * size) / 10000;
+    const secondSeasonWeekly = (crop.irrigation.secondPart * size) / 10000;
+    
+    setResults({
+      type: "irrigation",
+      crop: crop.name,
+      fieldSize: size,
+      totalWaterNeeded: totalWaterNeeded.toFixed(0),
+      firstSeasonWeekly: firstSeasonWeekly.toFixed(0),
+      secondSeasonWeekly: secondSeasonWeekly.toFixed(0),
+      costEstimate: (totalWaterNeeded * 0.001).toFixed(2),
+      totalWaterMm: totalWater,
+      firstPartMm: crop.irrigation.firstPart,
+      secondPartMm: crop.irrigation.secondPart,
+    });
+  };
+
+  const calculateYield = () => {
+    if (!selectedCrop || !fieldSize) {
+      Alert.alert("Missing Information", "Please select a crop and enter field size.");
+      return;
+    }
+
+    const crop = crops.find((c: Crop) => c.name === selectedCrop);
+    if (!crop) {
+      Alert.alert("Error", "Selected crop not found.");
+      return;
+    }
+
+    const size = parseFloat(fieldSize);
+    if (isNaN(size) || size <= 0) {
+      Alert.alert("Invalid Input", "Please enter a valid field size.");
+      return;
+    }
+    
+    // Handle both string and object yield formats
+    let yieldPerHa = 0;
+    let yieldRange = "";
+    
+    const yieldData = crop.growth.yield;
+    
+    if (typeof yieldData === 'string') {
+      yieldRange = yieldData;
+      // Extract average from string like "25-40 tons/ha"
+      const match = yieldData.match(/(\d+)-(\d+)/);
+      if (match) {
+        const min = parseInt(match[1]);
+        const max = parseInt(match[2]);
+        yieldPerHa = (min + max) / 2;
+      } else {
+        // Handle single value like "30 tons/ha"
+        const singleMatch = yieldData.match(/(\d+)/);
+        if (singleMatch) {
+          yieldPerHa = parseInt(singleMatch[1]);
+        }
+      }
+    } else if (yieldData && typeof yieldData === 'object' && 'tonsPerHa' in yieldData) {
+      yieldPerHa = yieldData.tonsPerHa;
+      yieldRange = `${yieldPerHa} tons/ha`;
+    }
+    
+    if (yieldPerHa === 0) {
+      Alert.alert("Data Error", "Yield data not available for this crop.");
+      return;
+    }
+    
+    const estimatedYield = (yieldPerHa * size) / 10000;
+    
+    setResults({
+      type: "yield",
+      crop: crop.name,
+      fieldSize: size,
+      estimatedYield: estimatedYield.toFixed(2),
+      revenueEstimate: (estimatedYield * 500).toFixed(2),
+      yieldPerHa: yieldPerHa,
+      yieldRange: yieldRange,
+    });
+  };
+
+  const handleCalculate = () => {
+    switch (selectedTool) {
+      case "seed":
+        calculateSeeds();
+        break;
+      case "fertilizer":
+        calculateFertilizer();
+        break;
+      case "irrigation":
+        calculateIrrigation();
+        break;
+      case "yield":
+        calculateYield();
+        break;
+      default:
+        Alert.alert("Error", "Please select a tool.");
+    }
+  };
+
+  const renderResults = () => {
+    if (!results) return null;
+
+    switch (results.type) {
+      case "seed":
+        return (
+          <>
+            <Text style={styles.resultsTitle}>Seed Requirements for {results.crop}</Text>
+            <View style={styles.resultRow}>
+              <Text style={styles.resultLabel}>Field Size:</Text>
+              <Text style={styles.resultValue}>{results.fieldSize} m²</Text>
+            </View>
+            <View style={styles.resultRow}>
+              <Text style={styles.resultLabel}>Seeds per kg:</Text>
+              <Text style={styles.resultValue}>{results.seedsPerKg}</Text>
+            </View>
+            <View style={styles.resultRow}>
+              <Text style={styles.resultLabel}>Required per ha:</Text>
+              <Text style={styles.resultValue}>{results.kgPerHa} kg</Text>
+            </View>
+            <View style={styles.divider} />
+            <View style={styles.resultRow}>
+              <Text style={styles.resultLabel}>Total seeds needed:</Text>
+              <Text style={styles.resultValueHighlight}>{parseInt(results.totalSeedsNeeded).toLocaleString()}</Text>
+            </View>
+            <View style={styles.resultRow}>
+              <Text style={styles.resultLabel}>Total weight needed:</Text>
+              <Text style={styles.resultValueHighlight}>{results.totalKgNeeded} kg</Text>
+            </View>
+            <View style={styles.resultRow}>
+              <Text style={styles.resultLabel}>Estimated cost:</Text>
+              <Text style={styles.resultValue}>${results.costEstimate}</Text>
+            </View>
+          </>
+        );
+      case "fertilizer":
+        return (
+          <>
+            <Text style={styles.resultsTitle}>Fertilizer Requirements for {results.crop}</Text>
+            <View style={styles.resultRow}>
+              <Text style={styles.resultLabel}>Field Size:</Text>
+              <Text style={styles.resultValue}>{results.fieldSize} m²</Text>
+            </View>
+            <View style={styles.resultRow}>
+              <Text style={styles.resultLabel}>NPK per ha:</Text>
+              <Text style={styles.resultValue}>{results.nPerHa}-{results.pPerHa}-{results.kPerHa} kg</Text>
+            </View>
+            <View style={styles.divider} />
+            <View style={styles.resultRow}>
+              <Text style={styles.resultLabel}>Nitrogen (N):</Text>
+              <Text style={styles.resultValueHighlight}>{results.n} kg</Text>
+            </View>
+            <View style={styles.resultRow}>
+              <Text style={styles.resultLabel}>Phosphorus (P):</Text>
+              <Text style={styles.resultValueHighlight}>{results.p} kg</Text>
+            </View>
+            <View style={styles.resultRow}>
+              <Text style={styles.resultLabel}>Potassium (K):</Text>
+              <Text style={styles.resultValueHighlight}>{results.k} kg</Text>
+            </View>
+            <View style={styles.resultRow}>
+              <Text style={styles.resultLabel}>Estimated cost:</Text>
+              <Text style={styles.resultValue}>${results.costEstimate}</Text>
+            </View>
+          </>
+        );
+      case "irrigation":
+        return (
+          <>
+            <Text style={styles.resultsTitle}>Irrigation Requirements for {results.crop}</Text>
+            <View style={styles.resultRow}>
+              <Text style={styles.resultLabel}>Field Size:</Text>
+              <Text style={styles.resultValue}>{results.fieldSize} m²</Text>
+            </View>
+            <View style={styles.resultRow}>
+              <Text style={styles.resultLabel}>Total per season:</Text>
+              <Text style={styles.resultValue}>{results.totalWaterMm}mm</Text>
+            </View>
+            <View style={styles.divider} />
+            <View style={styles.resultRow}>
+              <Text style={styles.resultLabel}>Total water needed:</Text>
+              <Text style={styles.resultValueHighlight}>{parseInt(results.totalWaterNeeded).toLocaleString()} liters</Text>
+            </View>
+            <View style={styles.resultRow}>
+              <Text style={styles.resultLabel}>First part of season:</Text>
+              <Text style={styles.resultValue}>{results.firstSeasonWeekly} liters/week</Text>
+            </View>
+            <View style={styles.resultRow}>
+              <Text style={styles.resultLabel}>Second part of season:</Text>
+              <Text style={styles.resultValue}>{results.secondSeasonWeekly} liters/week</Text>
+            </View>
+            <View style={styles.resultRow}>
+              <Text style={styles.resultLabel}>Estimated cost:</Text>
+              <Text style={styles.resultValue}>${results.costEstimate}</Text>
+            </View>
+          </>
+        );
+      case "yield":
+        return (
+          <>
+            <Text style={styles.resultsTitle}>Yield Estimation for {results.crop}</Text>
+            <View style={styles.resultRow}>
+              <Text style={styles.resultLabel}>Field Size:</Text>
+              <Text style={styles.resultValue}>{results.fieldSize} m²</Text>
+            </View>
+            <View style={styles.resultRow}>
+              <Text style={styles.resultLabel}>Yield range:</Text>
+              <Text style={styles.resultValue}>{results.yieldRange}</Text>
+            </View>
+            <View style={styles.divider} />
+            <View style={styles.resultRow}>
+              <Text style={styles.resultLabel}>Estimated yield:</Text>
+              <Text style={styles.resultValueHighlight}>{results.estimatedYield} tons</Text>
+            </View>
+            <View style={styles.resultRow}>
+              <Text style={styles.resultLabel}>Estimated revenue:</Text>
+              <Text style={styles.resultValueHighlight}>${results.revenueEstimate}</Text>
+            </View>
+          </>
+        );
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <ScrollView style={styles.container}>
+      <View style={styles.header}>
+        <Text style={styles.title}>Planning Tools</Text>
+        <Text style={styles.subtitle}>Calculate your farming requirements</Text>
+      </View>
+
+      <View style={styles.toolsSection}>
+        <Text style={styles.sectionTitle}>Select Tool</Text>
+        <View style={styles.toolsContainer}>
+          {tools.map(tool => (
+            <TouchableOpacity
+              key={tool.id}
+              style={[
+                styles.toolButton,
+                selectedTool === tool.id && styles.selectedToolButton
+              ]}
+              onPress={() => setSelectedTool(tool.id)}
+            >
+              <Ionicons name={tool.icon as any} size={24} color={selectedTool === tool.id ? "white" : "#4CAF50"} />
+              <Text style={[
+                styles.toolButtonText,
+                selectedTool === tool.id && styles.selectedToolButtonText
+              ]}>
+                {tool.name}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
+
+      <View style={styles.inputSection}>
+        <Text style={styles.sectionTitle}>Input Parameters</Text>
+        
+        <View style={styles.inputGroup}>
+          <Text style={styles.inputLabel}>Select Crop</Text>
+          <View style={styles.cropButtons}>
+            {crops.map(crop => (
+              <TouchableOpacity
+                key={crop.name}
+                style={[
+                  styles.cropButton,
+                  selectedCrop === crop.name && styles.selectedCropButton
+                ]}
+                onPress={() => setSelectedCrop(crop.name)}
+              >
+                <Text style={[
+                  styles.cropButtonText,
+                  selectedCrop === crop.name && styles.selectedCropButtonText
+                ]}>
+                  {crop.name}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+
+        <View style={styles.inputGroup}>
+          <Text style={styles.inputLabel}>Field Size (m²)</Text>
+          <TextInput
+            style={styles.textInput}
+            placeholder="Enter field size in square meters"
+            value={fieldSize}
+            onChangeText={setFieldSize}
+            keyboardType="numeric"
+          />
+          <View style={styles.inputHint}>
+            <Ionicons name="information-circle-outline" size={16} color="#666" />
+            <Text style={styles.inputHintText}>1 hectare = 10,000 m²</Text>
+          </View>
+        </View>
+
+        <TouchableOpacity 
+          style={[
+            styles.calculateButton,
+            (!selectedTool || !selectedCrop || !fieldSize) && styles.disabledButton
+          ]} 
+          onPress={handleCalculate}
+          disabled={!selectedTool || !selectedCrop || !fieldSize}
+        >
+          <Ionicons name="calculator" size={20} color="white" />
+          <Text style={styles.calculateButtonText}>Calculate</Text>
+        </TouchableOpacity>
+      </View>
+
+      {results && (
+        <View style={styles.resultsSection}>
+          <Text style={styles.sectionTitle}>Results</Text>
+          <View style={styles.resultsCard}>
+            {renderResults()}
+            
+            <View style={styles.actionButtons}>
+              <TouchableOpacity
+                style={styles.secondaryButton}
+                onPress={() => setResults(null)}
+              >
+                <Text style={styles.secondaryButtonText}>Clear</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.primaryButton}
+                onPress={() => router.push({ 
+                  pathname: "/crop-detail", 
+                  params: { cropName: results.crop } 
+                })}
+              >
+                <Text style={styles.primaryButtonText}>View Crop Details</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      )}
+    </ScrollView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: "#f5f5f5",
+  },
+  header: {
+    backgroundColor: "#4CAF50",
+    padding: 20,
+    alignItems: "center",
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: "bold",
+    color: "white",
+  },
+  subtitle: {
+    fontSize: 16,
+    color: "white",
+    marginTop: 5,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    marginBottom: 15,
+    color: "#333",
+  },
+  toolsSection: {
+    padding: 15,
+    backgroundColor: "white",
+    margin: 10,
+    borderRadius: 10,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 3,
+  },
+  toolsContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+  },
+  toolButton: {
+    width: "48%",
+    backgroundColor: "#f0f0f0",
+    padding: 15,
+    borderRadius: 10,
+    alignItems: "center",
+    marginBottom: 10,
+  },
+  selectedToolButton: {
+    backgroundColor: "#4CAF50",
+  },
+  toolButtonText: {
+    marginTop: 5,
+    fontSize: 14,
+    color: "#333",
+  },
+  selectedToolButtonText: {
+    color: "white",
+  },
+  inputSection: {
+    padding: 15,
+    backgroundColor: "white",
+    margin: 10,
+    borderRadius: 10,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 3,
+  },
+  inputGroup: {
+    marginBottom: 20,
+  },
+  inputLabel: {
+    fontSize: 16,
+    marginBottom: 10,
+    color: "#333",
+  },
+  cropButtons: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+  },
+  cropButton: {
+    backgroundColor: "#e0e0e0",
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    marginBottom: 8,
+    minWidth: 80,
+    alignItems: "center",
+  },
+  selectedCropButton: {
+    backgroundColor: "#4CAF50",
+  },
+  cropButtonText: {
+    fontSize: 12,
+    color: "#333",
+  },
+  selectedCropButtonText: {
+    color: "white",
+  },
+  textInput: {
+    height: 40,
+    borderColor: "#ddd",
+    borderWidth: 1,
+    borderRadius: 5,
+    paddingHorizontal: 10,
+  },
+  inputHint: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 5,
+  },
+  inputHintText: {
+    fontSize: 12,
+    color: "#666",
+    marginLeft: 5,
+  },
+  calculateButton: {
+    backgroundColor: "#4CAF50",
+    paddingVertical: 12,
+    borderRadius: 5,
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "center",
+  },
+  disabledButton: {
+    backgroundColor: "#ccc",
+  },
+  calculateButtonText: {
+    color: "white",
+    fontWeight: "bold",
+    fontSize: 16,
+    marginLeft: 10,
+  },
+  resultsSection: {
+    padding: 15,
+    backgroundColor: "white",
+    margin: 10,
+    borderRadius: 10,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 3,
+    marginBottom: 20,
+  },
+  resultsCard: {
+    backgroundColor: "#f9f9f9",
+    padding: 15,
+    borderRadius: 10,
+  },
+  resultsTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    marginBottom: 15,
+    color: "#4CAF50",
+  },
+  resultRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: 5,
+  },
+  resultLabel: {
+    fontSize: 16,
+    color: "#666",
+    flex: 1,
+  },
+  resultValue: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "#333",
+  },
+  resultValueHighlight: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "#4CAF50",
+  },
+  divider: {
+    height: 1,
+    backgroundColor: "#ddd",
+    marginVertical: 10,
+  },
+  actionButtons: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: 15,
+  },
+  primaryButton: {
+    backgroundColor: "#4CAF50",
+    paddingVertical: 10,
+    paddingHorizontal: 15,
+    borderRadius: 5,
+    flex: 1,
+    marginLeft: 10,
+  },
+  primaryButtonText: {
+    color: "white",
+    fontWeight: "bold",
+    textAlign: "center",
+  },
+  secondaryButton: {
+    backgroundColor: "#f0f0f0",
+    paddingVertical: 10,
+    paddingHorizontal: 15,
+    borderRadius: 5,
+    flex: 1,
+  },
+  secondaryButtonText: {
+    color: "#333",
+    fontWeight: "bold",
+    textAlign: "center",
+  },
+});
