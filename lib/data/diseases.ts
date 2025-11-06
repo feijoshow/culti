@@ -1,5 +1,7 @@
 // data/diseases.ts
-export const diseases = [
+import { Disease } from './types/disease';
+
+export const diseases: Disease[] = [
   {
     name: "Leaf Spot",
     symptoms: [

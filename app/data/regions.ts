@@ -1,4 +1,6 @@
-export const regions = [
+import { Region } from "../../lib/data/types/region";
+
+export const regions: Region[] = [
   {
     name: "Central",
     crops: [

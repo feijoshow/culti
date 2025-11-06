@@ -2,14 +2,14 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
-    Alert,
-    Modal,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  Modal,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { crops } from "./data/crops";
 
@@ -231,7 +231,8 @@ export default function CalculatorScreen() {
     let yieldPerHa = 0;
     let yieldRange = "";
     
-    const yieldData = crop.growth.yield;
+  // Some crop data shapes vary; cast to any to safely access optional yield object
+  const yieldData = (crop.growth as any).yield;
     
     if (typeof yieldData === 'string') {
       yieldRange = yieldData;
@@ -248,8 +249,8 @@ export default function CalculatorScreen() {
           yieldPerHa = parseInt(singleMatch[1]);
         }
       }
-    } else if (yieldData && typeof yieldData === 'object' && 'tonsPerHa' in yieldData) {
-      yieldPerHa = yieldData.tonsPerHa;
+    } else if (yieldData && typeof yieldData === 'object' && 'tonsPerHa' in (yieldData as any)) {
+      yieldPerHa = (yieldData as any).tonsPerHa;
       yieldRange = `${yieldPerHa} tons/ha`;
     }
     

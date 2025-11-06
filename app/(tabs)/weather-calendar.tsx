@@ -1,50 +1,64 @@
 import { Ionicons } from "@expo/vector-icons";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from "react-native";
-import { regions } from "../data/regions";
+import { fetchWeather } from "../../lib/api";
+import { regions } from "../../lib/data/regions";
+import { Region, RegionCrop } from "../../lib/data/types/region";
+
+// Type guard for Region
+const isRegion = (value: any): value is Region => {
+  return value && typeof value === 'object' && 'name' in value && 'crops' in value;
+};
 
 export default function WeatherCalendarScreen() {
-  const [selectedRegion, setSelectedRegion] = useState("Central");
+  const [selectedRegion, setSelectedRegion] = useState<Region>(() => {
+    const region = regions[0];
+    if (isRegion(region)) return region;
+    throw new Error('Initial region is not valid');
+  });
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
+  const [weatherData, setWeatherData] = useState<any | null>(null);
+  const [loading, setLoading] = useState(false);
   
   const months = [
     "January", "February", "March", "April", "May", "June",
     "July", "August", "September", "October", "November", "December"
   ];
 
-  const getRegionData = () => {
-    return regions.find(r => r.name === selectedRegion);
-  };
-
-  const getCropsForMonth = () => {
-    const regionData = getRegionData();
-    if (!regionData) return [];
+  const getCropsForMonth = (): RegionCrop[] => {
+    if (!selectedRegion?.crops) return [];
     
-    return regionData.crops.filter(crop => {
+    return selectedRegion.crops.filter((crop: RegionCrop) => {
       return crop.planting.includes(selectedMonth) || crop.harvesting.includes(selectedMonth);
     });
   };
 
-  const getWeatherData = () => {
-    return {
-      temperature: {
-        min: 15 + Math.floor(Math.random() * 10),
-        max: 25 + Math.floor(Math.random() * 10),
-      },
-      rainfall: Math.floor(Math.random() * 50),
-      humidity: 40 + Math.floor(Math.random() * 40),
-      windSpeed: 5 + Math.floor(Math.random() * 15),
-    };
-  };
-
-  const weatherData = getWeatherData();
+  // weatherData state is fetched from the API in useEffect
   const cropsForMonth = getCropsForMonth();
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      setLoading(true);
+      try {
+        const data = await fetchWeather(selectedRegion.name);
+        if (mounted) setWeatherData(data);
+      } catch (err) {
+        console.warn('Weather fetch failed', err);
+        if (mounted) setWeatherData(null);
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    })();
+
+    return () => { mounted = false; };
+  }, [selectedRegion, selectedMonth]);
 
   return (
     <ScrollView style={styles.container}>
@@ -56,18 +70,18 @@ export default function WeatherCalendarScreen() {
       <View style={styles.regionSelector}>
         <Text style={styles.sectionTitle}>Select Region</Text>
         <View style={styles.regionButtons}>
-          {regions.map(region => (
+          {regions.filter(isRegion).map((region) => (
             <TouchableOpacity
               key={region.name}
               style={[
                 styles.regionButton,
-                selectedRegion === region.name && styles.selectedRegionButton
+                selectedRegion.name === region.name && styles.selectedRegionButton
               ]}
-              onPress={() => setSelectedRegion(region.name)}
+              onPress={() => setSelectedRegion(region)}
             >
               <Text style={[
                 styles.regionButtonText,
-                selectedRegion === region.name && styles.selectedRegionButtonText
+                selectedRegion.name === region.name && styles.selectedRegionButtonText
               ]}>
                 {region.name}
               </Text>
@@ -102,26 +116,62 @@ export default function WeatherCalendarScreen() {
       <View style={styles.weatherSection}>
         <Text style={styles.sectionTitle}>Weather Forecast</Text>
         <View style={styles.weatherCard}>
-          <View style={styles.weatherRow}>
-            <Ionicons name="thermometer" size={24} color="#FF5722" />
-            <Text style={styles.weatherLabel}>Temperature:</Text>
-            <Text style={styles.weatherValue}>{weatherData.temperature.min}°C - {weatherData.temperature.max}°C</Text>
-          </View>
-          <View style={styles.weatherRow}>
-            <Ionicons name="water" size={24} color="#2196F3" />
-            <Text style={styles.weatherLabel}>Rainfall:</Text>
-            <Text style={styles.weatherValue}>{weatherData.rainfall}mm</Text>
-          </View>
-          <View style={styles.weatherRow}>
-            <Ionicons name="water" size={24} color="#03A9F4" />
-            <Text style={styles.weatherLabel}>Humidity:</Text>
-            <Text style={styles.weatherValue}>{weatherData.humidity}%</Text>
-          </View>
-          <View style={styles.weatherRow}>
-            <Ionicons name="wind" size={24} color="#607D8B" />
-            <Text style={styles.weatherLabel}>Wind Speed:</Text>
-            <Text style={styles.weatherValue}>{weatherData.windSpeed}km/h</Text>
-          </View>
+          {loading ? (
+            <Text style={styles.weatherValue}>Loading weather...</Text>
+          ) : weatherData ? (
+            <>
+              <View style={styles.weatherRow}>
+                <Ionicons name="thermometer" size={24} color="#FF5722" />
+                <Text style={styles.weatherLabel}>Temperature:</Text>
+                <Text style={styles.weatherValue}>{(() => {
+                  const temps = weatherData.hourly?.temperature_2m ?? [];
+                  const nums = temps.map((v: any) => Number(v)).filter((n: number) => !isNaN(n));
+                  if (nums.length === 0) return 'N/A';
+                  const min = Math.min(...nums);
+                  const max = Math.max(...nums);
+                  return `${min}°C - ${max}°C`;
+                })()}</Text>
+              </View>
+
+              <View style={styles.weatherRow}>
+                <Ionicons name="water" size={24} color="#2196F3" />
+                <Text style={styles.weatherLabel}>Rainfall (24h):</Text>
+                <Text style={styles.weatherValue}>{(() => {
+                  const prec = weatherData.hourly?.precipitation ?? [];
+                  const nums = prec.map((v: any) => Number(v)).filter((n: number) => !isNaN(n));
+                  if (nums.length === 0) return 'N/A';
+                  const sum = nums.slice(0, 24).reduce((s: number, x: number) => s + x, 0);
+                  return `${sum}mm`;
+                })()}</Text>
+              </View>
+
+              <View style={styles.weatherRow}>
+                <Ionicons name="water" size={24} color="#03A9F4" />
+                <Text style={styles.weatherLabel}>Humidity:</Text>
+                <Text style={styles.weatherValue}>{(() => {
+                  const hum = weatherData.hourly?.relativehumidity_2m ?? [];
+                  const nums = hum.map((v: any) => Number(v)).filter((n: number) => !isNaN(n));
+                  if (nums.length === 0) return 'N/A';
+                  const avg = Math.round(nums.reduce((s: number, x: number) => s + x, 0) / nums.length);
+                  return `${avg}%`;
+                })()}</Text>
+              </View>
+
+              <View style={styles.weatherRow}>
+                <Ionicons name="flag" size={24} color="#607D8B" />
+                <Text style={styles.weatherLabel}>Wind Speed:</Text>
+                <Text style={styles.weatherValue}>{(() => {
+                  const ws = weatherData.hourly?.windspeed_10m ?? [];
+                  const nums = ws.map((v: any) => Number(v)).filter((n: number) => !isNaN(n));
+                  if (nums.length === 0) return 'N/A';
+                  const avg = Math.round(nums.reduce((s: number, x: number) => s + x, 0) / nums.length);
+                  return `${avg} km/h`;
+                })()}</Text>
+              </View>
+            </>
+          ) : (
+            <Text style={styles.weatherValue}>No weather data available.</Text>
+          )}
         </View>
       </View>
 
@@ -143,10 +193,10 @@ export default function WeatherCalendarScreen() {
               <Text style={styles.calendarActivityText}>Planting</Text>
             </View>
             <View style={styles.calendarCrops}>
-              {cropsForMonth.filter(c => c.planting.includes(selectedMonth)).map((crop, index) => (
-                <Text key={index} style={styles.calendarCropText}>{crop.name}</Text>
+              {cropsForMonth.filter((c: RegionCrop) => c.planting.includes(selectedMonth)).map((crop: RegionCrop) => (
+                <Text key={crop.name} style={styles.calendarCropText}>{crop.name}</Text>
               ))}
-              {cropsForMonth.filter(c => c.planting.includes(selectedMonth)).length === 0 && (
+              {cropsForMonth.filter((c: RegionCrop) => c.planting.includes(selectedMonth)).length === 0 && (
                 <Text style={styles.noCropsText}>None</Text>
               )}
             </View>
@@ -158,10 +208,10 @@ export default function WeatherCalendarScreen() {
               <Text style={styles.calendarActivityText}>Harvesting</Text>
             </View>
             <View style={styles.calendarCrops}>
-              {cropsForMonth.filter(c => c.harvesting.includes(selectedMonth)).map((crop, index) => (
-                <Text key={index} style={styles.calendarCropText}>{crop.name}</Text>
+              {cropsForMonth.filter((c: RegionCrop) => c.harvesting.includes(selectedMonth)).map((crop: RegionCrop) => (
+                <Text key={crop.name} style={styles.calendarCropText}>{crop.name}</Text>
               ))}
-              {cropsForMonth.filter(c => c.harvesting.includes(selectedMonth)).length === 0 && (
+              {cropsForMonth.filter((c: RegionCrop) => c.harvesting.includes(selectedMonth)).length === 0 && (
                 <Text style={styles.noCropsText}>None</Text>
               )}
             </View>

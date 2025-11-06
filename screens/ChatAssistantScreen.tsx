@@ -55,7 +55,12 @@ const ChatAssistantScreen = () => {
     "broccoli harvest": "Harvest broccoli when the head is firm, tight, and dark green before the flowers open. Cut the central head with 5-6 inches of stem. Side shoots will continue to produce smaller heads for additional harvests.",
   };
 
-  const handleSend = () => {
+  // API wrapper
+  import('../lib/api').then(m => {
+    /* noop to let bundlers statically include file */
+  }).catch(()=>{});
+
+  const handleSend = async () => {
     if (!inputText.trim()) return;
 
     const userMessage: Message = {
@@ -69,56 +74,30 @@ const ChatAssistantScreen = () => {
     setInputText('');
     setIsTyping(true);
 
-    // Simulate AI response
-    setTimeout(() => {
-      const responseText = generateResponse(inputText);
-      
+    try {
+      const api = await import('../lib/api');
+      const resp = await api.fetchChatResponse(inputText);
       const assistantMessage: Message = {
         id: messages.length + 2,
-        text: responseText,
+        text: resp.text,
         sender: 'assistant',
         timestamp: new Date(),
       };
-
       setMessages(prevMessages => [...prevMessages, assistantMessage]);
+    } catch (err: any) {
+      const assistantMessage: Message = {
+        id: messages.length + 2,
+        text: `Error fetching AI response: ${err?.message ?? err}`,
+        sender: 'assistant',
+        timestamp: new Date(),
+      };
+      setMessages(prevMessages => [...prevMessages, assistantMessage]);
+    } finally {
       setIsTyping(false);
-    }, 1500);
+    }
   };
 
-  const generateResponse = (query: string): string => {
-    const lowerQuery = query.toLowerCase();
-    
-    // Check for specific keywords in the query
-    for (const [keyword, answer] of Object.entries(quickAnswers)) {
-      if (lowerQuery.includes(keyword)) {
-        return answer;
-      }
-    }
-    
-    // General responses
-    if (lowerQuery.includes('hello') || lowerQuery.includes('hi')) {
-      return "Hello! How can I assist you with your farming questions today?";
-    }
-    
-    if (lowerQuery.includes('help')) {
-      return "I can help you with information about crop diseases, planting schedules, pest control, soil management, and more. Feel free to ask any farming-related question!";
-    }
-    
-    if (lowerQuery.includes('disease')) {
-      return "For disease identification, I recommend using the Crop Doctor feature to take a photo of your plant. You can also ask me about specific disease symptoms and treatments.";
-    }
-    
-    if (lowerQuery.includes('planting')) {
-      return "For planting schedules, check the Weather & Calendar feature and select your region. This will show you the optimal planting times for various crops in your area.";
-    }
-    
-    if (lowerQuery.includes('fertilizer')) {
-      return "Use the Planning Tools calculator to determine exact fertilizer requirements for your crops. You'll need to select the crop and field size to get precise recommendations.";
-    }
-    
-    // Default response
-    return "That's a great question! For specific information about this topic, I recommend checking the relevant features in the app or consulting the NAB Vegetable Production Guide. Is there anything else I can help you with?";
-  };
+  // generateResponse removed. Now handled by fetchChatResponse via API wrapper.
 
   const handleQuickQuestion = (question: string) => {
     setInputText(question);

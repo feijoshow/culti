@@ -12,12 +12,13 @@ import {
     TouchableOpacity,
     View,
 } from "react-native";
-import { diseases } from "../data/diseases";
+import { diseases } from "../../lib/data/diseases";
+import { Disease } from "../../lib/data/types/disease";
 
 export default function CropDoctorScreen() {
   const router = useRouter();
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
-  const [diagnosis, setDiagnosis] = useState<any>(null);
+  const [diagnosis, setDiagnosis] = useState<Disease | null>(null);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 

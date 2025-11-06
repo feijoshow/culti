@@ -10,6 +10,7 @@ import {
   View
 } from 'react-native';
 
+import { fetchWeather } from '../lib/api';
 import { regions } from '../lib/data/regions';
 import { getCommonName, getCropsForCurrentMonth } from '../lib/data/utils';
 import { colors, spacing, typography } from '../lib/theme';
@@ -27,12 +28,21 @@ const WeatherCalendarScreen = () => {
   ];
 
   useEffect(() => {
-    // Load weather data (mock data for now)
-    loadWeatherData();
+    // Load weather data (API or mock)
+    (async () => {
+      try {
+        const data = await fetchWeather(selectedRegion.name);
+        setWeatherData(data);
+      } catch (err) {
+        // Fallback to local mock generation when API unavailable
+        loadWeatherData();
+      }
+    })();
+
     // Load crops for selected month and region
-    const crops = getCropsForCurrentMonth(selectedRegion);
+    const crops = getCropsForCurrentMonth(selectedRegion.name);
     const filteredCrops = crops.filter(crop => {
-      const dates = crop.plantingHarvestingDates[selectedRegion];
+      const dates = crop.plantingHarvestingDates[selectedRegion.name];
       if (!dates) return false;
       
       return dates.planting.includes(months[selectedMonth]) || 
@@ -131,18 +141,18 @@ const WeatherCalendarScreen = () => {
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
           {regions.map(region => (
             <TouchableOpacity
-              key={region}
+              key={region.name}
               style={[
                 styles.regionButton,
-                selectedRegion === region && styles.selectedRegionButton
+                selectedRegion.name === region.name && styles.selectedRegionButton
               ]}
               onPress={() => setSelectedRegion(region)}
             >
               <Text style={[
                 styles.regionButtonText,
-                selectedRegion === region && styles.selectedRegionButtonText
+                selectedRegion.name === region.name && styles.selectedRegionButtonText
               ]}>
-                {region.replace(' Production Zone', '')}
+                {region.name.replace(' Production Zone', '')}
               </Text>
             </TouchableOpacity>
           ))}
@@ -217,14 +227,14 @@ const WeatherCalendarScreen = () => {
             </View>
             <View style={styles.calendarCrops}>
               {cropsForMonth.filter(c => 
-                c.plantingHarvestingDates[selectedRegion]?.planting.includes(months[selectedMonth])
+                c.plantingHarvestingDates[selectedRegion.name]?.planting.includes(months[selectedMonth])
               ).map((crop, index) => (
                 <Text key={index} style={styles.calendarCropText}>
                   {getCommonName(crop.scientificName)}
                 </Text>
               ))}
               {cropsForMonth.filter(c => 
-                c.plantingHarvestingDates[selectedRegion]?.planting.includes(months[selectedMonth])
+                c.plantingHarvestingDates[selectedRegion.name]?.planting.includes(months[selectedMonth])
               ).length === 0 && (
                 <Text style={styles.noCropsText}>None</Text>
               )}
@@ -238,14 +248,14 @@ const WeatherCalendarScreen = () => {
             </View>
             <View style={styles.calendarCrops}>
               {cropsForMonth.filter(c => 
-                c.plantingHarvestingDates[selectedRegion]?.harvesting.includes(months[selectedMonth])
+                c.plantingHarvestingDates[selectedRegion.name]?.harvesting.includes(months[selectedMonth])
               ).map((crop, index) => (
                 <Text key={index} style={styles.calendarCropText}>
                   {getCommonName(crop.scientificName)}
                 </Text>
               ))}
               {cropsForMonth.filter(c => 
-                c.plantingHarvestingDates[selectedRegion]?.harvesting.includes(months[selectedMonth])
+                c.plantingHarvestingDates[selectedRegion.name]?.harvesting.includes(months[selectedMonth])
               ).length === 0 && (
                 <Text style={styles.noCropsText}>None</Text>
               )}
