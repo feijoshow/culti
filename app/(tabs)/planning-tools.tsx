@@ -2,15 +2,15 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
-    Alert,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
-import { crops } from "../data/crops";
+import { crops } from "../../lib/data/crops";
 
 // Type definitions
 interface CalculatorResults {
@@ -20,55 +20,7 @@ interface CalculatorResults {
   [key: string]: any;
 }
 
-interface CropYield {
-  tonsPerHa: number;
-}
-
-interface CropGrowth {
-  temperature: string;
-  population: string;
-  yield: string | CropYield;
-  period: string;
-}
-
-interface Crop {
-  name: string;
-  scientificName: string;
-  image: string;
-  description: string;
-  seedsPerKg: number;
-  kgPerHa: number;
-  spacing: {
-    intraRows: string;
-    interRows: string;
-  };
-  sowingDepth: string;
-  germination: {
-    temperature: number;
-    days: number;
-  };
-  growth: CropGrowth;
-  rootDepth: string | number;
-  irrigation: {
-    total: number;
-    firstPart: number;
-    secondPart: number;
-  };
-  nutrients: {
-    n: number;
-    p: number;
-    k: number;
-  };
-  leafAnalysis: {
-    n: number;
-    p: number;
-    k: number;
-  };
-  microDeficiencies: string[];
-  soilPH: string;
-  diseases: string[];
-  pests: string[];
-}
+import { Crop } from "../../lib/data/types/crop";
 
 export default function PlanningToolsScreen() {
   const router = useRouter();
@@ -220,7 +172,8 @@ export default function PlanningToolsScreen() {
     let yieldPerHa = 0;
     let yieldRange = "";
     
-    const yieldData = crop.growth.yield;
+  // Some crop data shapes vary; cast to any to safely access optional yield object
+  const yieldData = (crop.growth as any).yield;
     
     if (typeof yieldData === 'string') {
       yieldRange = yieldData;
@@ -237,8 +190,8 @@ export default function PlanningToolsScreen() {
           yieldPerHa = parseInt(singleMatch[1]);
         }
       }
-    } else if (yieldData && typeof yieldData === 'object' && 'tonsPerHa' in yieldData) {
-      yieldPerHa = yieldData.tonsPerHa;
+    } else if (yieldData && typeof yieldData === 'object' && 'tonsPerHa' in (yieldData as any)) {
+      yieldPerHa = (yieldData as any).tonsPerHa;
       yieldRange = `${yieldPerHa} tons/ha`;
     }
     

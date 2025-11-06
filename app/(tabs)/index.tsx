@@ -2,16 +2,16 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
-  Alert,
-  Image,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    Alert,
+    Image,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from "react-native";
-import { crops } from "../data/crops";
-import { regions } from "../data/regions";
+import { crops } from "../../lib/data/crops";
+import { regions } from "../../lib/data/regions";
 
 export default function HomeScreen() {
   const router = useRouter();

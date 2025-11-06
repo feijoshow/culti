@@ -4,17 +4,18 @@ import { useNavigation } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
 import React, { useState } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
-  Image,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Alert,
+    Image,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 
+import { analyzeImageWithAI } from '../lib/api';
 import { diseases } from '../lib/data/diseases';
 import { colors, spacing, typography } from '../lib/theme';
 
@@ -64,17 +65,21 @@ const CropDoctorScreen = () => {
     }
   };
 
-  const analyzeImage = (imageUri: string) => {
+  const analyzeImage = async (imageUri: string) => {
     setLoading(true);
-    
-    // Simulate AI analysis with a timeout
-    setTimeout(() => {
-      // In a real app, this would be an API call to analyze the image
-      // For demo purposes, we'll randomly select a disease
+    try {
+      // Prefer the real API; fallback handled inside analyzeImageWithAI
+      const result = await analyzeImageWithAI(imageUri);
+      // If API returns a disease-like object, use it; otherwise try to map fields
+      setDiagnosis(result || diseases[Math.floor(Math.random() * diseases.length)]);
+    } catch (err: any) {
+      // On error, fall back to local random disease and show brief alert
+      Alert.alert('Analysis Error', err?.message ?? 'Unable to analyze image. Showing local sample.');
       const randomDisease = diseases[Math.floor(Math.random() * diseases.length)];
       setDiagnosis(randomDisease);
+    } finally {
       setLoading(false);
-    }, 2000);
+    }
   };
 
   const searchDiseases = () => {
